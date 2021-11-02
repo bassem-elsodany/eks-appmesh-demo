@@ -1,0 +1,202 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $DEMO_APP_SVC_1-v2
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: $DEMO_APP_SVC_1
+      version: v2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: $DEMO_APP_SVC_1
+        version: v2
+    spec:
+      containers:
+        - name: $DEMO_APP_SVC_1
+          image: "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/echo-server:1.1"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9080
+          env:
+            - name: "country"
+              value: "$DEMO_APP_SVC_1-v2"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $DEMO_APP_SVC_2-v2
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: $DEMO_APP_SVC_2
+      version: v2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: $DEMO_APP_SVC_2
+        version: v2
+    spec:
+      containers:
+        - name: $DEMO_APP_SVC_2
+          image: "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/echo-server:1.1"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9080
+          env:
+            - name: "country"
+              value: "$DEMO_APP_SVC_2-v2"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $DEMO_APP_SVC_1-v2
+  namespace: $AWS_DEFAULT_PROFILE
+  labels:
+    app: $DEMO_APP_SVC_1
+    version: v2
+spec:
+  ports:
+  - port: 9080
+    name: http
+  selector:
+    app: $DEMO_APP_SVC_1
+    version: v2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $DEMO_APP_SVC_2-v2
+  namespace: $AWS_DEFAULT_PROFILE
+  labels:
+    app: $DEMO_APP_SVC_2
+    version: v2
+spec:
+  ports:
+  - port: 9080
+    name: http
+  selector:
+    app: $DEMO_APP_SVC_2
+    version: v2
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: $DEMO_APP_SVC_1-v2
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  podSelector:
+    matchLabels:
+      app: $DEMO_APP_SVC_1
+      version: v2
+  listeners:
+    - portMapping:
+        port: 9080
+        protocol: http
+      healthCheck:
+        protocol: http
+        path: '/ping'
+        healthyThreshold: 2
+        unhealthyThreshold: 2
+        timeoutMillis: 2000
+        intervalMillis: 5000
+  backends:
+    - virtualService:
+        virtualServiceRef:
+          name: $DEMO_APP_SVC_1
+  serviceDiscovery:
+    dns:
+      hostname: $DEMO_APP_SVC_1-v2.$AWS_DEFAULT_PROFILE.svc.cluster.local
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: $DEMO_APP_SVC_2-v2
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  podSelector:
+    matchLabels:
+      app: $DEMO_APP_SVC_2
+      version: v2
+  listeners:
+    - portMapping:
+        port: 9080
+        protocol: http
+      healthCheck:
+        protocol: http
+        path: '/ping'
+        healthyThreshold: 2
+        unhealthyThreshold: 2
+        timeoutMillis: 2000
+        intervalMillis: 5000
+  backends:
+    - virtualService:
+        virtualServiceRef:
+          name: $DEMO_APP_SVC_2
+  serviceDiscovery:
+    dns:
+      hostname: $DEMO_APP_SVC_2-v2.$AWS_DEFAULT_PROFILE.svc.cluster.local
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  name: $DEMO_APP_SVC_1-router
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  listeners:
+    - portMapping:
+        port: 9080
+        protocol: http
+  routes:
+    - name: $DEMO_APP_SVC_1-route
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: $DEMO_APP_SVC_1-v1
+              weight: 95
+            - virtualNodeRef:
+                name: $DEMO_APP_SVC_1-v2
+              weight: 5
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  name: $DEMO_APP_SVC_2-router
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  listeners:
+    - portMapping:
+        port: 9080
+        protocol: http
+  routes:
+    - name: $DEMO_APP_SVC_2-route
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: $DEMO_APP_SVC_2-v1
+              weight: 90
+            - virtualNodeRef:
+                name: $DEMO_APP_SVC_2-v2
+              weight: 10
+---

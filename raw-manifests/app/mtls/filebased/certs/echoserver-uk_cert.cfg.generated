@@ -1,0 +1,30 @@
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[req_distinguished_name]
+countryName = UK
+countryName_default = UK
+stateOrProvinceName = London
+stateOrProvinceName_default = London
+localityName = London
+localityName_default = London
+organizationName = Epam Systems
+organizationName_default = Epam Systems
+organizationalUnitName = UK IT
+organizationalUnitName_default = UK IT
+commonName = uk-v1.development.svc.cluster.local
+commonName_default = uk-v1.development.svc.cluster.local
+commonName_max  = 64
+emailAddress = echo-server-uk@epam.com
+emailAddress_default = echo-server-uk@epam.com
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth, serverAuth
+subjectKeyIdentifier = hash
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = uk-v1.development.svc.cluster.local

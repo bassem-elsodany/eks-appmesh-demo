@@ -1,0 +1,10 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: admin
+  namespace: $AWS_DEFAULT_PROFILE
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: admin
+credentials:
+  - consumerapikey

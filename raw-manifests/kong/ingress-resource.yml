@@ -1,0 +1,82 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongIngress
+metadata:
+  name: fqdn-$DEMO_APP_SVC_2
+  namespace: $AWS_DEFAULT_PROFILE
+upstream:
+  host_header: $DEMO_APP_SVC_2.$AWS_DEFAULT_PROFILE.svc.cluster.local
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongIngress
+metadata:
+  name: fqdn-$DEMO_APP_SVC_1
+  namespace: $AWS_DEFAULT_PROFILE
+upstream:
+  host_header: $DEMO_APP_SVC_1.$AWS_DEFAULT_PROFILE.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $DEMO_APP_SVC_2
+  namespace: $AWS_DEFAULT_PROFILE
+  annotations:
+    konghq.com/override: fqdn-$DEMO_APP_SVC_2
+    ingress.kubernetes.io/service-upstream: "true"
+  labels:
+    app: $DEMO_APP_SVC_2
+    kong: "true"
+spec:
+  ports:
+  - port: 9080
+    name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $DEMO_APP_SVC_1
+  namespace: $AWS_DEFAULT_PROFILE
+  annotations:
+    konghq.com/override: fqdn-$DEMO_APP_SVC_1
+    ingress.kubernetes.io/service-upstream: "true"
+  labels:
+    app: $DEMO_APP_SVC_1
+    kong: "true"
+spec:
+  ports:
+  - port: 9080
+    name: http
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongIngress
+metadata:
+  name: do-not-preserve-host
+  namespace: $AWS_DEFAULT_PROFILE
+route:
+  preserve_host: false
+  strip_path: true
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: $DEMO_APP_NAME-ingress
+  namespace: $AWS_DEFAULT_PROFILE
+  annotations:
+    konghq.com/strip-path: "true"
+    kubernetes.io/ingress.class: kong
+    konghq.com/override: do-not-preserve-host
+spec:
+  #tls:
+  #- secretName: example-com
+   # hosts:
+    #- demo.example.com #change this domain/subdomain
+  rules:
+  - http:
+      paths:
+        - path: /echo/$DEMO_APP_SVC_2
+          backend:
+            serviceName: $DEMO_APP_SVC_2
+            servicePort: 9080
+        - path: /echo/$DEMO_APP_SVC_1
+          backend:
+            serviceName: $DEMO_APP_SVC_1
+            servicePort: 9080

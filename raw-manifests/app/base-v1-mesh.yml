@@ -1,0 +1,217 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: $AWS_DEFAULT_PROFILE
+  labels:
+    mesh: $DEMO_APP_MESH_NAME
+    appmesh.k8s.aws/sidecarInjectorWebhook: enabled
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: Mesh
+metadata:
+  name: $DEMO_APP_MESH_NAME
+spec:
+  namespaceSelector:
+    matchLabels:
+      mesh: $DEMO_APP_MESH_NAME
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: $DEMO_APP_NAME
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  podSelector:
+    matchLabels:
+      app: $DEMO_APP_NAME
+  listeners:
+    - portMapping:
+        port: 9080
+        protocol: http
+      healthCheck:
+        protocol: http
+        path: '/ping'
+        healthyThreshold: 2
+        unhealthyThreshold: 2
+        timeoutMillis: 2000
+        intervalMillis: 5000
+  backends:
+    - virtualService:
+        virtualServiceRef:
+          name: $DEMO_APP_SVC_1
+    - virtualService:
+        virtualServiceRef:
+          name: $DEMO_APP_SVC_2
+  serviceDiscovery:
+    dns:
+      hostname: ${DEMO_APP_NAME}.$AWS_DEFAULT_PROFILE.svc.cluster.local
+  logging:
+    accessLog:
+      file:
+        path: /dev/stdout
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: ${DEMO_APP_SVC_1}-v1
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  podSelector:
+    matchLabels:
+      app: $DEMO_APP_SVC_1
+      version: v1
+  listeners:
+    - portMapping:
+        port: 9080
+        protocol: http
+      healthCheck:
+        protocol: http
+        path: '/ping'
+        healthyThreshold: 2
+        unhealthyThreshold: 2
+        timeoutMillis: 2000
+        intervalMillis: 5000
+  backends:
+    - virtualService:
+        virtualServiceRef:
+          name: $DEMO_APP_SVC_1
+  serviceDiscovery:
+    dns:
+      hostname: ${DEMO_APP_SVC_1}-v1.$AWS_DEFAULT_PROFILE.svc.cluster.local
+  logging:
+    accessLog:
+      file:
+        path: /dev/stdout
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualNode
+metadata:
+  name: ${DEMO_APP_SVC_2}-v1
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  podSelector:
+    matchLabels:
+      app: $DEMO_APP_SVC_2
+      version: v1
+  listeners:
+    - portMapping:
+        port: 9080
+        protocol: http
+      healthCheck:
+        protocol: http
+        path: '/ping'
+        healthyThreshold: 2
+        unhealthyThreshold: 2
+        timeoutMillis: 2000
+        intervalMillis: 5000
+  backends:
+    - virtualService:
+        virtualServiceRef:
+          name: $DEMO_APP_SVC_2
+  serviceDiscovery:
+    dns:
+      hostname: ${DEMO_APP_SVC_2}-v1.${AWS_DEFAULT_PROFILE}.svc.cluster.local
+  logging:
+    accessLog:
+      file:
+        path: /dev/stdout
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: $DEMO_APP_SVC_1
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  awsName: $DEMO_APP_SVC_1.$AWS_DEFAULT_PROFILE.svc.cluster.local
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: ${DEMO_APP_SVC_1}-router
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualService
+metadata:
+  name: $DEMO_APP_SVC_2
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  awsName: ${DEMO_APP_SVC_2}.${AWS_DEFAULT_PROFILE}.svc.cluster.local
+  provider:
+    virtualRouter:
+      virtualRouterRef:
+        name: ${DEMO_APP_SVC_2}-router
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  name: $DEMO_APP_SVC_1-router
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  listeners:
+    - portMapping:
+        port: 9080
+        protocol: http
+  routes:
+    - name: ${DEMO_APP_SVC_1}-route
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: ${DEMO_APP_SVC_1}-v1
+              weight: 100
+        #UNCOMMENT below to enable retries
+        #retryPolicy:
+        #  maxRetries: 4
+        #  perRetryTimeout:
+        #    unit: ms
+        #    value: 2000
+        #  httpRetryEvents:
+        #    - server-error
+---
+apiVersion: appmesh.k8s.aws/v1beta2
+kind: VirtualRouter
+metadata:
+  name: $DEMO_APP_SVC_2-router
+  namespace: $AWS_DEFAULT_PROFILE
+spec:
+  listeners:
+    - portMapping:
+        port: 9080
+        protocol: http
+  routes:
+    - name: ${DEMO_APP_SVC_2}-route
+      httpRoute:
+        match:
+          prefix: /
+        action:
+          weightedTargets:
+            - virtualNodeRef:
+                name: $DEMO_APP_SVC_2-v1
+              weight: 100
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $DEMO_APP_SVC_1
+  namespace: $AWS_DEFAULT_PROFILE
+  labels:
+    app: $DEMO_APP_SVC_1
+spec:
+  ports:
+  - port: 9080
+    name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $DEMO_APP_SVC_2
+  namespace: $AWS_DEFAULT_PROFILE
+  labels:
+    app: $DEMO_APP_SVC_2
+spec:
+  ports:
+  - port: 9080
+    name: http
+---

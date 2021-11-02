@@ -1,0 +1,9 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: rl-by-minute
+  namespace: $AWS_DEFAULT_PROFILE
+config:
+  minute: 10
+  policy: local
+plugin: rate-limiting
