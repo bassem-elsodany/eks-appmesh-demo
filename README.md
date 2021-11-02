@@ -13,7 +13,7 @@
   export DEMO_APP_SVC_1=echoserver-uk \
   export DEMO_APP_SVC_2=echoserver-canada \
 
-  rm ~/.kube/config
+  > rm ~/.kube/config
 
 ---------------------------------------------------------------------------------------------------------
 #### [2] execute to create the cluster
